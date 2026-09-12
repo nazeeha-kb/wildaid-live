@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { distanceMiles, type Species, type Status } from "./rehab";
+import { distanceMiles, type Coordinates, type Species, type Status } from "./rehab";
 
 export type CenterRow = {
   id: string;
@@ -20,10 +20,15 @@ export type StatusRow = {
 };
 
 export type Center = CenterRow & {
-  distance: number;
   statuses: Record<Species, { status: Status; updatedAt: string }>;
   lastUpdated: string;
 };
+
+export type NearbyCenter = Center & { distance: number };
+
+export function sortCentersByDistance(centers: Center[], location: Coordinates): NearbyCenter[] {
+  return centers.map((center) => ({ ...center, distance: distanceMiles(location, center) })).sort((a, b) => a.distance - b.distance);
+}
 
 async function fetchBoard(): Promise<Center[]> {
   const [{ data: centers, error: e1 }, { data: statuses, error: e2 }] = await Promise.all([
@@ -44,12 +49,10 @@ async function fetchBoard(): Promise<Center[]> {
         .at(-1);
       return {
         ...c,
-        distance: distanceMiles(c.latitude, c.longitude),
         statuses: map,
         lastUpdated: lastUpdated ?? new Date().toISOString(),
       };
-    })
-    .sort((a, b) => a.distance - b.distance);
+    });
 }
 
 export const boardKey = ["rehab-board"] as const;

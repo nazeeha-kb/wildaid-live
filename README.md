@@ -1,6 +1,6 @@
-# WildAid Live
+# AnimalAid
 
-Build a web app called "RehabStatus" — a live capacity board that shows the public which wildlife rehabbers currently have room to take in an animal, filtered by species, instead of a static directory.
+AnimalAid is a live, location-aware capacity board that shows the public which wildlife care centers currently have room to take in an animal, filtered by species, instead of a static directory.
 
 Core concept
 
@@ -18,11 +18,11 @@ Seed a mock dataset (no real auth/backend needed — use Supabase or local state
 
 name
 
-lat/lng (spread around a real metro area, e.g. Pittsburgh, PA)
+lat/lng for each participating center, anywhere in the world
 
 phone number (fake)
 
-species categories they handle: birds, mammals-small (squirrels, opossums), mammals-medium (raccoons, groundhogs), fawns, reptiles
+species categories they handle: birds, mammals-small (squirrels, opossums, cats, dogs), mammals-medium (raccoons, groundhogs), fawns, reptiles
 
 for EACH species category, a status: open, full, by-appointment
 
@@ -36,7 +36,7 @@ A simple, calm, mobile-first flow (this is often used by someone panicking with 
 
 "What's the situation?" — quick options like "Injured", "Appears healthy / just found", "Orphaned baby", "Hit by car". This step should also show a short reassurance card for the common "actually doesn't need help" cases (e.g. picking a fawn or fledgling triggers a "this may be normal — here's how to tell" tip) BEFORE pushing them to call anyone, since a huge share of calls are unnecessary.
 
-Results: a map (use a simple map library, e.g. Leaflet/Mapbox with mock tiles is fine) plus a list below it, showing ONLY rehabbers whose status for that species is currently open or by-appointment, sorted by distance. Full/closed centers are hidden from the primary list, not just greyed out — that's the core differentiation vs. a static directory.
+Results: a map plus a list below it, showing only care centers whose status for that species is currently open or by-appointment. When opened, the map requests the user's current location and prioritizes nearby centers by live distance. Location is retained only in the active browser session. Full/closed centers are hidden from the primary list.
 
 If literally nobody nearby is open for that species, show an honest, clear empty state: "No one nearby currently has capacity for raccoons. Statuses update constantly — check back soon, or call [state wildlife hotline] for guidance." This "sorry, no capacity" state is the key demo moment — it should look intentional and calm, not like an error.
 
@@ -72,7 +72,7 @@ Real phone/SMS integration — phone numbers can just be tap-to-call links.
 
 Payment, admin panel, or center onboarding flow.
 
-Real map tile/geocoding accuracy beyond "looks like a real metro area."
+Real-time geocoding or center onboarding workflows.
 
 Nice-to-have if time allows
 
@@ -81,6 +81,10 @@ A subtle "X centers currently open near you" counter on the landing screen.
 A tiny bit of copy acknowledging the broader landscape: something like "Not a replacement for your state wildlife hotline — a live view of who has room right now."
 
 This project was built with [Lovable](https://lovable.dev).
+
+## Server Configuration
+
+Image descriptions are generated server-side with Gemini. Set `GEMINI_API_KEY` and `GEMINI_MODEL` in the deployment environment. Pings are persisted immediately; to email recipients, also configure `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `APP_URL` with a verified Resend sender domain.
 
 ## Build with Lovable
 

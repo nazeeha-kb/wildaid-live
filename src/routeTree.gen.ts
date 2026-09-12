@@ -11,6 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RehabberRouteImport } from './routes/rehabber'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as RequestResetPasswordRouteImport } from './routes/request-reset-password'
+import { Route as UpdatePasswordRouteImport } from './routes/update-password'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +25,58 @@ const RehabberRoute = RehabberRouteImport.update({
   path: '/rehabber',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestResetPasswordRoute = RequestResetPasswordRouteImport.update({
+  id: '/request-reset-password',
+  path: '/request-reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UpdatePasswordRoute = UpdatePasswordRouteImport.update({
+  id: '/update-password',
+  path: '/update-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/rehabber': typeof RehabberRoute
+  '/auth': typeof AuthRoute
+  '/request-reset-password': typeof RequestResetPasswordRoute
+  '/update-password': typeof UpdatePasswordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/rehabber': typeof RehabberRoute
+  '/auth': typeof AuthRoute
+  '/request-reset-password': typeof RequestResetPasswordRoute
+  '/update-password': typeof UpdatePasswordRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/rehabber': typeof RehabberRoute
+  '/auth': typeof AuthRoute
+  '/request-reset-password': typeof RequestResetPasswordRoute
+  '/update-password': typeof UpdatePasswordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/rehabber'
+  fullPaths: '/' | '/rehabber' | '/auth' | '/request-reset-password' | '/update-password'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/rehabber'
-  id: '__root__' | '/' | '/rehabber'
+  to: '/' | '/rehabber' | '/auth' | '/request-reset-password' | '/update-password'
+  id: '__root__' | '/' | '/rehabber' | '/auth' | '/request-reset-password' | '/update-password'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RehabberRoute: typeof RehabberRoute
+  AuthRoute: typeof AuthRoute
+  RequestResetPasswordRoute: typeof RequestResetPasswordRoute
+  UpdatePasswordRoute: typeof UpdatePasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +95,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RehabberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/request-reset-password': {
+      id: '/request-reset-password'
+      path: '/request-reset-password'
+      fullPath: '/request-reset-password'
+      preLoaderRoute: typeof RequestResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/update-password': {
+      id: '/update-password'
+      path: '/update-password'
+      fullPath: '/update-password'
+      preLoaderRoute: typeof UpdatePasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RehabberRoute: RehabberRoute,
+  AuthRoute: AuthRoute,
+  RequestResetPasswordRoute: RequestResetPasswordRoute,
+  UpdatePasswordRoute: UpdatePasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
