@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Leaf } from "lucide-react";
 import { useState } from "react";
 import { SPECIES, STATUS_META, timeAgo, type Species, type Status } from "@/lib/rehab";
@@ -7,6 +8,13 @@ import type { Center } from "@/lib/rehab-data";
 import { useNow } from "@/hooks/use-now";
 
 export const Route = createFileRoute("/rehabber")({
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getSession();
+
+    if (!data.session) {
+      throw redirect({ to: "/auth" });
+    }
+  },
   component: RehabberDashboard,
 });
 
@@ -27,9 +35,26 @@ function RehabberDashboard() {
             </span>
             <span className="font-display text-lg font-semibold">RehabStatus</span>
           </Link>
-          <Link to="/" search={{}} className="text-sm text-muted-foreground hover:text-foreground">
-            Caller view
-          </Link>
+          <div className="flex items-center gap-3">
+  <Link
+    to="/"
+    search={{}}
+    className="text-sm text-muted-foreground hover:text-foreground"
+  >
+    Caller view
+  </Link>
+
+  <button
+    type="button"
+    onClick={async () => {
+      await supabase.auth.signOut();
+      window.location.href = "/auth";
+    }}
+    className="text-sm text-muted-foreground hover:text-foreground"
+  >
+    Sign out
+  </button>
+</div>
         </div>
       </header>
 

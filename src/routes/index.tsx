@@ -32,13 +32,13 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "RehabStatus — Who has room for wildlife right now" },
+      { title: "HasRoom — Who has room for wildlife right now" },
       {
         name: "description",
         content:
           "A live capacity board for wildlife rehabbers near Pittsburgh. See who can take in a bird, fawn, raccoon or turtle right now — updated by rehabbers in real time.",
       },
-      { property: "og:title", content: "RehabStatus — Who has room for wildlife right now" },
+      { property: "og:title", content: "HasRoom — Who has room for wildlife right now" },
       {
         property: "og:description",
         content:
@@ -64,15 +64,32 @@ function Shell({ children }: { children: React.ReactNode }) {
             <span className="grid size-8 place-items-center rounded-xl bg-primary/12 text-primary">
               <Leaf className="size-4" />
             </span>
-            <span className="font-display text-lg font-semibold">RehabStatus</span>
+            <span className="font-display text-lg font-semibold">HasRoom</span>
           </Link>
           <Link
-            to="/rehabber"
+            to="/auth"
             className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground tap-press hover:bg-accent"
           >
             I'm a rehabber
           </Link>
         </div>
+        <div className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          For rehabbers
+        </p>
+        <h2 className="mt-2 font-display text-xl font-semibold">
+          Keep your capacity up to date.
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Update your availability so people can quickly find a rehabber who has room for wildlife right now.
+        </p>
+        <Link
+          to="/auth"
+          className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground tap-press hover:bg-primary/90"
+        >
+          I'm a rehabber
+        </Link>
+      </div>
       </header>
       <main className="mx-auto max-w-2xl px-5 pb-16 pt-6">{children}</main>
       <footer className="mx-auto max-w-2xl px-5 pb-10 text-center text-xs leading-relaxed text-muted-foreground">
