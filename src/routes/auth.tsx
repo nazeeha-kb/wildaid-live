@@ -32,7 +32,7 @@ function AuthPage() {
     setMessage("");
 
     const credentials = { email: email.trim(), password };
-    const { error } =
+    const { data, error } =
       mode === "signup"
         ? await supabase.auth.signUp({
             ...credentials,
@@ -46,7 +46,7 @@ function AuthPage() {
       return;
     }
 
-    if (mode === "signup") {
+    if (mode === "signup" && !data.session) {
       setMessage("Account created. Check your email if confirmation is enabled, then sign in.");
       setMode("login");
       setPassword("");
