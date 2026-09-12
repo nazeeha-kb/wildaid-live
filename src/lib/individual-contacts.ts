@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { UserLocation } from "@/hooks/use-user-location";
 import { distanceMiles } from "@/lib/rehab";
+import { displayNameForUser } from "@/lib/auth";
 
 export type IndividualContact = {
   id: string;
@@ -10,16 +11,29 @@ export type IndividualContact = {
   longitude: number;
 };
 
-const PEOPLE_RADIUS_MILES = 25;
+const PEOPLE_RADIUS_MILES = 100;
 
 export function useIndividualContacts(location?: UserLocation, enabled = true) {
   return useQuery({
     queryKey: ["individual-contact-map", location?.latitude, location?.longitude, enabled],
     queryFn: async (): Promise<IndividualContact[]> => {
-      const client = supabase as unknown as { from: (table: string) => { select: (columns: string) => PromiseLike<{ data: IndividualContact[] | null; error: Error | null }> } };
+      const client = supabase as unknown as { auth: { getUser: () => Promise<{ data: { user: { id: string; user_metadata?: Record<string, unknown>; email?: string } | null } }> }; from: (table: string) => any };
+      const { data: userData } = await client.auth.getUser();
+      if (!userData.user || !location) return [];
+      const { data: existing } = await client.from("individual_contacts").select("id").eq("user_id", userData.user.id).maybeSingle();
+      const metadataName = userData.user.user_metadata?.["full_name"];
+      const contact = {
+        display_name: typeof metadataName === "string" && metadataName.trim() ? metadataName.trim() : userData.user.email?.split("@")[0] || "AnimalAid user",
+        latitude: location.latitude,
+        longitude: location.longitude,
+        is_available: true,
+        share_location: true,
+        user_id: userData.user.id,
+      };
+      if (existing?.id) await client.from("individual_contacts").update(contact).eq("id", existing.id);
+      else await client.from("individual_contacts").insert(contact);
       const { data, error } = await client.from("individual_contact_map").select("id,display_name,latitude,longitude");
       if (error) throw error;
-      if (!location) return [];
       return (data ?? [])
         .map((contact) => ({ ...contact, distance: distanceMiles(location, contact) }))
         .filter((contact) => contact.distance <= PEOPLE_RADIUS_MILES)

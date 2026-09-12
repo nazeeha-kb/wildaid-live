@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Phone, MapPin, Info, RefreshCw, Leaf, Navigation, LogIn, UserCircle } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, Info, RefreshCw, Leaf, Navigation, LogIn, LogOut } from "lucide-react";
 import { MapPanel } from "@/components/MapPanel";
 import { ImageReportComposer } from "@/components/ImageReportComposer";
 import { useUserLocation } from "@/hooks/use-user-location";
@@ -11,7 +11,8 @@ import { useNearbyCarePlaces } from "@/lib/nearby-care";
 import type { NearbyCarePlace } from "@/lib/nearby-care.server";
 import { sendAnimalAidPing } from "@/lib/animal-aid.server";
 import { playPingSound } from "@/lib/ping-sound";
-import { displayNameForUser, useSupabaseSession } from "@/lib/auth";
+import { useSupabaseSession } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   SPECIES,
   SITUATIONS,
@@ -84,13 +85,15 @@ function Shell({ children }: { children: React.ReactNode }) {
             >
               I'm a rehabber
             </Link>
-            <Link
-              to="/auth"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm tap-press hover:bg-primary/90"
-            >
-              {user ? <UserCircle className="size-3.5" /> : <LogIn className="size-3.5" />}
-              {user ? displayNameForUser(user) : "Login"}
-            </Link>
+            {user ? (
+              <button type="button" onClick={() => void supabase.auth.signOut()} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm tap-press hover:bg-primary/90">
+                <LogOut className="size-3.5" /> Log out
+              </button>
+            ) : (
+              <Link to="/auth" className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm tap-press hover:bg-primary/90">
+                <LogIn className="size-3.5" /> Login
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -105,9 +108,16 @@ function Shell({ children }: { children: React.ReactNode }) {
 function Triage() {
   const { species, situation, go } = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
+  const { user, isLoading: sessionLoading } = useSupabaseSession();
   const { data: centers, isLoading } = useBoard();
 
   const set = (next: Search) => navigate({ search: next });
+
+  if (sessionLoading) {
+    return <div className="grid min-h-screen place-items-center bg-background px-5 text-sm text-muted-foreground">Checking your account...</div>;
+  }
+
+  if (!user) return <Navigate to="/auth" />;
 
   if (!species)
     return <Landing centers={centers ?? []} isLoading={isLoading} onPick={(s) => set({ species: s })} />;

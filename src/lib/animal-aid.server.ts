@@ -20,7 +20,7 @@ export const analyzeAnimalImage = createServerFn({ method: "POST" })
     if (data.imageBase64.length > 8_000_000) throw new Error("Use an image smaller than 6 MB.");
 
     const apiKey = process.env.GEMINI_API_KEY;
-    const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
     if (!apiKey) throw new Error("Image analysis is not configured.");
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -28,17 +28,17 @@ export const analyzeAnimalImage = createServerFn({ method: "POST" })
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [
-          { text: "Analyze this wildlife-help image and return exactly two complete, useful sentences. Each sentence must be 18 to 32 words, directed to a licensed wildlife rehabilitator. Identify the animal only if reasonably visible, describe directly observable condition or risks without diagnosing, and never stop after a sentence fragment." },
+          { text: "Describe this wildlife-help photo for a licensed wildlife rehabilitator in one or two short, complete sentences. Identify the animal only when reasonably visible, mention only observable condition or risks, and do not diagnose. Return plain text with no heading or markdown." },
           { inlineData: { mimeType: data.mimeType, data: data.imageBase64 } },
         ] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 384 },
+        generationConfig: { temperature: 0.1, maxOutputTokens: 160 },
       }),
     });
     if (!response.ok) throw new Error("Image analysis is temporarily unavailable.");
     const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const description = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join(" ").trim();
-    if (!description || !/[.!?]\s+.+[.!?]$/.test(description)) throw new Error("The image analysis was incomplete. Please analyze the photo again.");
-    return { description };
+    const description = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join(" ").replace(/\s+/g, " ").trim();
+    if (!description || description.replace(/[.!?\s]/g, "").length < 12) throw new Error("The image analysis was incomplete. Please analyze the photo again.");
+    return { description: description.replace(/^\*+|\*+$/g, "").trim() };
   });
 
 export const sendAnimalAidPing = createServerFn({ method: "POST" })
