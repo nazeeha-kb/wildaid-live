@@ -320,6 +320,9 @@ function Results({
     return s === "open" || s === "by_appointment";
   });
   const nearby = location ? sortCentersByDistance(available, location) : available;
+  const mapCenters = location
+    ? sortCentersByDistance(centers ?? [], location).filter((center) => center.distance <= 25 * 0.621371)
+    : [];
 
   const sendPing = async (contact: IndividualContact) => {
     if (!location) {
@@ -374,7 +377,7 @@ function Results({
       ) : (
         <>
           <ImageReportComposer description={description} onDescriptionChange={setDescription} />
-          <MapPanel location={location} locationStatus={locationStatus} onRetryLocation={() => { retryLocation(); void refreshIndividuals(); }} individuals={individuals} places={places} mode={mapMode} onModeChange={setMapMode} onPing={sendPing} pingPending={pingPending} />
+          <MapPanel location={location} locationStatus={locationStatus} onRetryLocation={() => { retryLocation(); void refreshIndividuals(); }} individuals={individuals} places={places} centers={mapCenters} mode={mapMode} onModeChange={setMapMode} onPing={sendPing} pingPending={pingPending} />
           {pingMessage && <p className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground" role="status">{pingMessage}</p>}
           <div className="mt-4 grid gap-3">
             {mapMode === "people" ? (
@@ -401,7 +404,7 @@ function CarePlaceCard({ place }: { place: NearbyCarePlace }) {
   </div>;
 }
 
-function PersonCard({ person, onPing, pingPending }: { person: IndividualContact; onPing: (person: IndividualContact) => void; pingPending?: string }) {
+function PersonCard({ person, onPing, pingPending }: { person: IndividualContact; onPing: (person: IndividualContact) => void; pingPending: string | undefined }) {
   return <div className="rounded-xl border border-border bg-card p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><h3 className="font-display text-lg">{person.display_name}</h3><p className="mt-0.5 text-sm text-muted-foreground">Available on AnimalAid</p></div><button type="button" onClick={() => onPing(person)} disabled={pingPending === person.id} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{pingPending === person.id ? "Sending" : "Ping"}</button></div></div>;
 }
 

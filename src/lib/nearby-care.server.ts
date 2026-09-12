@@ -46,10 +46,17 @@ export const getNearbyCarePlaces = createServerFn({ method: "GET" })
     return elements.flatMap((element) => {
       const latitude = element.lat ?? element.center?.lat;
       const longitude = element.lon ?? element.center?.lon;
-      if (!latitude || !longitude || !element.tags?.name) return [];
-      const tags = element.tags;
-      const kind = tags["animal:wildlife_rehabilitation"] === "yes" || tags.animal_shelter ? "Wildlife care" : "Veterinary care";
+      const tags = element.tags ?? {};
+      const name = tags["name"];
+      if (!latitude || !longitude || !name) return [];
+      const kind: NearbyCarePlace["kind"] = tags["animal:wildlife_rehabilitation"] === "yes" || tags["animal_shelter"] ? "Wildlife care" : "Veterinary care";
       const address = [tags["addr:housenumber"], tags["addr:street"], tags["addr:city"]].filter(Boolean).join(" ");
-      return [{ id: `${element.type}-${element.id}`, name: tags.name, kind, latitude, longitude, address: address || undefined, phone: tags.phone || tags["contact:phone"], website: tags.website || tags["contact:website"], distance: distanceMiles(origin, { latitude, longitude }) }];
+      const place: NearbyCarePlace = { id: `${element.type}-${element.id}`, name, kind, latitude, longitude, distance: distanceMiles(origin, { latitude, longitude }) };
+      if (address) place.address = address;
+      const phone = tags["phone"] || tags["contact:phone"];
+      if (phone) place.phone = phone;
+      const website = tags["website"] || tags["contact:website"];
+      if (website) place.website = website;
+      return [place];
     }).filter((place) => place.distance <= zoneRadiusKm * 0.621371).sort((a, b) => a.distance - b.distance);
   });

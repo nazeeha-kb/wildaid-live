@@ -19,8 +19,8 @@ export const analyzeAnimalImage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (data.imageBase64.length > 8_000_000) throw new Error("Use an image smaller than 6 MB.");
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+    const apiKey = process.env["GEMINI_API_KEY"];
+    const model = process.env["GEMINI_MODEL"] || "gemini-2.5-flash-lite";
     if (!apiKey) throw new Error("Image analysis is not configured.");
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -71,9 +71,9 @@ export const sendAnimalAidPing = createServerFn({ method: "POST" })
       .single();
     if (pingError || !ping) throw new Error("The ping could not be created.");
 
-    const appUrl = process.env.APP_URL;
-    const resendKey = process.env.RESEND_API_KEY;
-    const from = process.env.RESEND_FROM_EMAIL;
+    const appUrl = process.env["APP_URL"];
+    const resendKey = process.env["RESEND_API_KEY"];
+    const from = process.env["RESEND_FROM_EMAIL"];
     if (!resendKey || !from || !appUrl) throw new Error("Email delivery is not configured on the server.");
 
     const pingUrl = `${appUrl.replace(/\/$/, "")}/?ping=${encodeURIComponent(ping.id)}`;
