@@ -12,7 +12,7 @@ export const SPECIES: {
   {
     id: "mammals_small",
     label: "Small mammal",
-    examples: "squirrels, opossums, chipmunks",
+    examples: "squirrels, opossums, cats, dogs, chipmunks",
     emoji: "🐿️",
     plural: "small mammals",
   },
@@ -69,17 +69,16 @@ export const STATUS_META: Record<
   },
 };
 
-/** Downtown Pittsburgh — fixed reference point so the demo is deterministic. */
-export const ORIGIN = { lat: 40.4406, lng: -79.9959 };
+export type Coordinates = { latitude: number; longitude: number };
 
-export function distanceMiles(lat: number, lng: number) {
+export function distanceMiles(from: Coordinates, to: Coordinates) {
   const toRad = (v: number) => (v * Math.PI) / 180;
   const R = 3958.8;
-  const dLat = toRad(lat - ORIGIN.lat);
-  const dLng = toRad(lng - ORIGIN.lng);
+  const dLat = toRad(to.latitude - from.latitude);
+  const dLng = toRad(to.longitude - from.longitude);
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(ORIGIN.lat)) * Math.cos(toRad(lat)) * Math.sin(dLng / 2) ** 2;
+    Math.cos(toRad(from.latitude)) * Math.cos(toRad(to.latitude)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
@@ -133,4 +132,5 @@ export function reassurance(species: Species, situation: SituationId) {
   return null;
 }
 
-export const STATE_HOTLINE = { label: "PA Game Commission", phone: "(833) 742-4868" };
+export const WILDLIFE_GUIDANCE = "Contact your local licensed wildlife authority for immediate guidance.";
+export const STATE_HOTLINE = { label: "Local wildlife authority", phone: "" };

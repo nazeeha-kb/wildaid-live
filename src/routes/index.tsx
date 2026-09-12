@@ -1,8 +1,18 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Phone, MapPin, Info, RefreshCw, Leaf } from "lucide-react";
+import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { ArrowLeft, Phone, MapPin, Info, RefreshCw, Leaf, Navigation, LogIn, LogOut } from "lucide-react";
 import { MapPanel } from "@/components/MapPanel";
+import { ImageReportComposer } from "@/components/ImageReportComposer";
+import { useUserLocation } from "@/hooks/use-user-location";
 import { useNow } from "@/hooks/use-now";
-import { useBoard, type Center } from "@/lib/rehab-data";
+import { sortCentersByDistance, useBoard, type Center, type NearbyCenter } from "@/lib/rehab-data";
+import { useIndividualContacts, type IndividualContact } from "@/lib/individual-contacts";
+import { useNearbyCarePlaces } from "@/lib/nearby-care";
+import type { NearbyCarePlace } from "@/lib/nearby-care.server";
+import { sendAnimalAidPing } from "@/lib/animal-aid.server";
+import { playPingSound } from "@/lib/ping-sound";
+import { useSupabaseSession } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   SPECIES,
   SITUATIONS,
@@ -32,13 +42,13 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "RehabStatus — Who has room for wildlife right now" },
+      { title: "AnimalAid | Live wildlife care availability" },
       {
         name: "description",
         content:
-          "A live capacity board for wildlife rehabbers near Pittsburgh. See who can take in a bird, fawn, raccoon or turtle right now — updated by rehabbers in real time.",
+          "A live capacity board for wildlife care, with nearby real-world wildlife care and veterinary listings.",
       },
-      { property: "og:title", content: "RehabStatus — Who has room for wildlife right now" },
+      { property: "og:title", content: "AnimalAid | Live wildlife care availability" },
       {
         property: "og:description",
         content:
@@ -56,6 +66,8 @@ function tel(phone: string) {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
+  const { user } = useSupabaseSession();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/70 bg-card/60 backdrop-blur">
@@ -64,14 +76,25 @@ function Shell({ children }: { children: React.ReactNode }) {
             <span className="grid size-8 place-items-center rounded-xl bg-primary/12 text-primary">
               <Leaf className="size-4" />
             </span>
-            <span className="font-display text-lg font-semibold">RehabStatus</span>
+            <span className="font-display text-lg font-semibold">AnimalAid</span>
           </Link>
-          <Link
-            to="/rehabber"
-            className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground tap-press hover:bg-accent"
-          >
-            I'm a rehabber
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/rehabber"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground shadow-sm tap-press hover:bg-accent"
+            >
+              I'm a rehabber
+            </Link>
+            {user ? (
+              <button type="button" onClick={() => void supabase.auth.signOut()} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm tap-press hover:bg-primary/90">
+                <LogOut className="size-3.5" /> Log out
+              </button>
+            ) : (
+              <Link to="/auth" className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm tap-press hover:bg-primary/90">
+                <LogIn className="size-3.5" /> Login
+              </Link>
+            )}
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-2xl px-5 pb-16 pt-6">{children}</main>
@@ -85,9 +108,16 @@ function Shell({ children }: { children: React.ReactNode }) {
 function Triage() {
   const { species, situation, go } = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
+  const { user, isLoading: sessionLoading } = useSupabaseSession();
   const { data: centers, isLoading } = useBoard();
 
   const set = (next: Search) => navigate({ search: next });
+
+  if (sessionLoading) {
+    return <div className="grid min-h-screen place-items-center bg-background px-5 text-sm text-muted-foreground">Checking your account...</div>;
+  }
+
+  if (!user) return <Navigate to="/auth" />;
 
   if (!species)
     return <Landing centers={centers ?? []} isLoading={isLoading} onPick={(s) => set({ species: s })} />;
@@ -148,14 +178,14 @@ function Landing({
   return (
     <Shell>
       <div className="mb-7">
-        <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-open-soft px-3 py-1 text-xs font-medium text-open">
+        <p className="mb-4 inline-flex items-center gap-2 rounded-lg border border-open/10 bg-open-soft px-3 py-1.5 text-xs font-semibold text-open">
           <span className="relative flex size-2">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-open opacity-60" />
             <span className="relative inline-flex size-2 rounded-full bg-open" />
           </span>
           {isLoading ? "Checking capacity…" : `${openCount} centers currently open near you`}
         </p>
-        <h1 className="font-display text-3xl leading-tight">
+        <h1 className="max-w-xl font-display text-3xl leading-tight sm:text-4xl">
           Found an animal? Let's find someone with room.
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
@@ -172,9 +202,9 @@ function Landing({
           <button
             key={s.id}
             onClick={() => onPick(s.id)}
-            className="flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-4 text-left shadow-sm tap-press hover:border-primary/40 hover:shadow-md"
+            className="group flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 text-left shadow-sm tap-press hover:border-primary/40 hover:shadow-md"
           >
-            <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-accent text-2xl">
+            <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-accent text-2xl transition-transform group-hover:scale-105">
               {s.emoji}
             </span>
             <span className="min-w-0">
@@ -276,11 +306,50 @@ function Results({
   onBack: () => void;
 }) {
   const now = useNow(10000);
+  const { location, status: locationStatus, retry: retryLocation } = useUserLocation();
+  const { user, isLoading: sessionLoading } = useSupabaseSession();
+  const { data: individuals = [], refetch: refreshIndividuals } = useIndividualContacts(location);
+  const { data: places = [], isLoading: placesLoading } = useNearbyCarePlaces(location);
+  const [description, setDescription] = useState("");
+  const [mapMode, setMapMode] = useState<"centers" | "people">("centers");
+  const [pingPending, setPingPending] = useState<string>();
+  const [pingMessage, setPingMessage] = useState<string>();
   const meta = SPECIES.find((s) => s.id === species)!;
   const available = (centers ?? []).filter((c) => {
     const s = c.statuses[species]?.status;
     return s === "open" || s === "by_appointment";
   });
+  const nearby = location ? sortCentersByDistance(available, location) : available;
+  const mapCenters = location
+    ? sortCentersByDistance(centers ?? [], location).filter((center) => center.distance <= 25 * 0.621371)
+    : [];
+
+  const sendPing = async (contact: IndividualContact) => {
+    if (!location) {
+      setPingMessage("Allow location access before sending a ping.");
+      return;
+    }
+    if (!description.trim()) {
+      setPingMessage("Add a short description before sending a ping.");
+      return;
+    }
+    const senderEmail = user?.email?.trim();
+    if (!senderEmail || !/^\S+@\S+\.\S+$/.test(senderEmail)) {
+      setPingMessage("Your signed-in account needs a valid email before you can send a ping.");
+      return;
+    }
+    setPingPending(contact.id);
+    setPingMessage(undefined);
+    try {
+      const result = await sendAnimalAidPing({ data: { contactId: contact.id, description, latitude: location.latitude, longitude: location.longitude, replyTo: senderEmail } });
+      playPingSound();
+      setPingMessage(result.delivery === "email" ? `Ping sent to ${contact.display_name}.` : `Ping saved for ${contact.display_name}; email delivery needs server mail settings.`);
+    } catch (cause) {
+      setPingMessage(cause instanceof Error ? cause.message : "The ping could not be sent.");
+    } finally {
+      setPingPending(undefined);
+    }
+  };
 
   return (
     <Shell>
@@ -288,30 +357,41 @@ function Results({
       <div className="mb-4 flex items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl">
-            {available.length > 0
-              ? `${available.length} ${available.length === 1 ? "center has" : "centers have"} room`
-              : "No capacity right now"}
+            {location ? "Nearby wildlife care and vets" : "Find nearby wildlife care"}
           </h1>
           <p className="text-sm text-muted-foreground">
             For {meta.plural} · nearest first · updates live
           </p>
         </div>
         <span className="flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] text-muted-foreground">
-          <RefreshCw className="size-3" /> live
+          <button type="button" onClick={() => { retryLocation(); void refreshIndividuals(); }} disabled={locationStatus === "locating"} className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-60" aria-label="Refresh your current location">
+            <RefreshCw className={`size-3 ${locationStatus === "locating" ? "animate-spin" : ""}`} /> live
+          </button>
         </span>
       </div>
 
-      {isLoading ? (
+      {isLoading && !location ? (
         <div className="h-56 animate-pulse rounded-2xl bg-muted" />
-      ) : available.length === 0 ? (
+      ) : !location && available.length === 0 ? (
         <EmptyState speciesLabel={meta.plural} />
       ) : (
         <>
-          <MapPanel centers={available} species={species} />
+          <ImageReportComposer description={description} onDescriptionChange={setDescription} />
+          <MapPanel location={location} locationStatus={locationStatus} onRetryLocation={() => { retryLocation(); void refreshIndividuals(); }} individuals={individuals} places={places} centers={mapCenters} mode={mapMode} onModeChange={setMapMode} onPing={sendPing} pingPending={pingPending} />
+          {pingMessage && <p className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground" role="status">{pingMessage}</p>}
           <div className="mt-4 grid gap-3">
-            {available.map((c) => (
-              <ResultCard key={c.id} center={c} species={species} now={now} />
-            ))}
+            {mapMode === "people" ? (
+              individuals.length ? individuals.map((person) => <PersonCard key={person.id} person={person} onPing={sendPing} pingPending={pingPending} />) : <NearbyEmpty title="No people nearby right now" body={sessionLoading ? "Checking for nearby AnimalAid users." : "No opted-in AnimalAid users are within 100 miles of your current location."} />
+            ) : placesLoading && !mapCenters.length ? (
+              <div className="h-24 animate-pulse rounded-xl bg-muted" />
+            ) : places.length || mapCenters.length ? (
+              <>
+                {mapCenters.map((center) => <RehabberCenterCard key={center.id} center={center} />)}
+                {places.map((place) => <CarePlaceCard key={place.id} place={place} />)}
+              </>
+            ) : (
+              <NearbyEmpty title="No nearby care locations found" body="Try widening your search area or contact your local wildlife authority for guidance." />
+            )}
           </div>
         </>
       )}
@@ -319,7 +399,34 @@ function Results({
   );
 }
 
-function ResultCard({ center, species, now }: { center: Center; species: Species; now: number }) {
+function CarePlaceCard({ place }: { place: NearbyCarePlace }) {
+  return <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-display text-lg leading-snug">{place.name}</h3><p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground"><Navigation className="size-3.5 text-primary" /> {place.distance.toFixed(1)} mi away</p></div><span className="shrink-0 rounded-full bg-appt-soft px-2.5 py-1 text-xs font-semibold text-appt">{place.kind}</span></div>
+    {place.address && <p className="mt-3 text-sm text-muted-foreground">{place.address}</p>}
+    <div className="mt-4 flex flex-wrap items-center gap-2">{place.phone && <a href={tel(place.phone)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground tap-press hover:bg-primary/90"><Phone className="size-4" /> Call</a>}{place.website && <a href={place.website} target="_blank" rel="noreferrer" className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent">Website</a>}</div>
+  </div>;
+}
+
+function RehabberCenterCard({ center }: { center: NearbyCenter }) {
+  return <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-display text-lg leading-snug">{center.name}</h3><p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground"><Navigation className="size-3.5 text-primary" /> {center.distance.toFixed(1)} mi away</p></div><span className="shrink-0 rounded-full bg-open-soft px-2.5 py-1 text-xs font-semibold text-open">Wildlife care</span></div>
+    {center.phone && <div className="mt-4"><a href={tel(center.phone)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground tap-press hover:bg-primary/90"><Phone className="size-4" /> Call</a></div>}
+  </div>;
+}
+
+function PersonCard({ person, onPing, pingPending }: { person: IndividualContact; onPing: (person: IndividualContact) => void; pingPending: string | undefined }) {
+  return <div className="rounded-xl border border-border bg-card p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><h3 className="font-display text-lg">{person.display_name}</h3><p className="mt-0.5 text-sm text-muted-foreground">Available on AnimalAid</p></div><button type="button" onClick={() => onPing(person)} disabled={pingPending === person.id} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{pingPending === person.id ? "Sending" : "Ping"}</button></div></div>;
+}
+
+function NearbyEmpty({ title, body }: { title: string; body: string }) {
+  return <div className="rounded-xl border border-border bg-card p-5 text-center shadow-sm"><h2 className="font-display text-lg">{title}</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p></div>;
+}
+
+function SignInEmpty({ loading }: { loading: boolean }) {
+  return <div className="rounded-xl border border-border bg-card p-5 text-center shadow-sm"><h2 className="font-display text-lg">{loading ? "Checking your account" : "Login to see nearby people"}</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Only signed-in AnimalAid users can view opted-in people near their current location.</p><Link to="/auth" className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90">Login or create account</Link></div>;
+}
+
+function ResultCard({ center, species, now }: { center: Center | NearbyCenter; species: Species; now: number }) {
   const entry = center.statuses[species];
   const status: Status = entry?.status ?? "full";
   const meta = STATUS_META[status];
@@ -328,13 +435,15 @@ function ResultCard({ center, species, now }: { center: Center; species: Species
   );
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-display text-lg leading-snug">{center.name}</h3>
-          <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin className="size-3.5" /> {center.distance.toFixed(1)} mi away
-          </p>
+          {"distance" in center ? (
+            <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground"><Navigation className="size-3.5 text-primary" /> {center.distance.toFixed(1)} mi away</p>
+          ) : (
+            <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="size-3.5" /> Location pending</p>
+          )}
         </div>
         <span
           className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${meta.bg} ${meta.text}`}
@@ -375,7 +484,7 @@ function EmptyState({ speciesLabel }: { speciesLabel: string }) {
         This is normal during busy season. Statuses update constantly — keep this page open and it
         will refresh itself the moment a center opens up.
       </p>
-      <div className="mt-6 rounded-2xl bg-muted/70 p-4">
+      <div className="mt-6 rounded-xl border border-border bg-muted/70 p-4">
         <p className="text-sm text-muted-foreground">In the meantime, call for guidance:</p>
         <a
           href={tel(STATE_HOTLINE.phone)}
