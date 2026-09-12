@@ -307,11 +307,10 @@ function Results({
 }) {
   const now = useNow(10000);
   const { location, status: locationStatus, retry: retryLocation } = useUserLocation();
-  const { isLoading: sessionLoading } = useSupabaseSession();
+  const { user, isLoading: sessionLoading } = useSupabaseSession();
   const { data: individuals = [], refetch: refreshIndividuals } = useIndividualContacts(location);
   const { data: places = [], isLoading: placesLoading } = useNearbyCarePlaces(location);
   const [description, setDescription] = useState("");
-  const [replyTo, setReplyTo] = useState("");
   const [mapMode, setMapMode] = useState<"centers" | "people">("centers");
   const [pingPending, setPingPending] = useState<string>();
   const [pingMessage, setPingMessage] = useState<string>();
@@ -331,14 +330,15 @@ function Results({
       setPingMessage("Add a short description before sending a ping.");
       return;
     }
-    if (!/^\S+@\S+\.\S+$/.test(replyTo)) {
-      setPingMessage("Enter your email so the person helping can reply.");
+    const senderEmail = user?.email?.trim();
+    if (!senderEmail || !/^\S+@\S+\.\S+$/.test(senderEmail)) {
+      setPingMessage("Your signed-in account needs a valid email before you can send a ping.");
       return;
     }
     setPingPending(contact.id);
     setPingMessage(undefined);
     try {
-      const result = await sendAnimalAidPing({ data: { contactId: contact.id, description, latitude: location.latitude, longitude: location.longitude, replyTo } });
+      const result = await sendAnimalAidPing({ data: { contactId: contact.id, description, latitude: location.latitude, longitude: location.longitude, replyTo: senderEmail } });
       playPingSound();
       setPingMessage(result.delivery === "email" ? `Ping sent to ${contact.display_name}.` : `Ping saved for ${contact.display_name}; email delivery needs server mail settings.`);
     } catch (cause) {
@@ -373,7 +373,7 @@ function Results({
         <EmptyState speciesLabel={meta.plural} />
       ) : (
         <>
-          <ImageReportComposer description={description} onDescriptionChange={setDescription} email={replyTo} onEmailChange={setReplyTo} />
+          <ImageReportComposer description={description} onDescriptionChange={setDescription} />
           <MapPanel location={location} locationStatus={locationStatus} onRetryLocation={() => { retryLocation(); void refreshIndividuals(); }} individuals={individuals} places={places} mode={mapMode} onModeChange={setMapMode} onPing={sendPing} pingPending={pingPending} />
           {pingMessage && <p className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground" role="status">{pingMessage}</p>}
           <div className="mt-4 grid gap-3">

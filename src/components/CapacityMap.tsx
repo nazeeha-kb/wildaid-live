@@ -24,7 +24,7 @@ const CARE_PIN = pin("oklch(0.62 0.12 75)");
 function ViewportController({ location }: { location?: UserLocation }) {
   const map = useMap();
   useEffect(() => {
-    if (location) map.setView([location.latitude, location.longitude], 18, { animate: true });
+    if (location) map.setView([location.latitude, location.longitude], 11, { animate: true });
   }, [location, map]);
   return null;
 }
@@ -42,7 +42,7 @@ export default function CapacityMap({ location, individuals, places, mode, onPin
     : places.length ? [places[0].latitude, places[0].longitude] : [20, 0];
 
   return (
-    <MapContainer center={initialCenter} zoom={location ? 18 : places.length ? 10 : 2} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
+    <MapContainer center={initialCenter} zoom={location ? 11 : places.length ? 10 : 2} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
       <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <ViewportController location={location} />
       {location && <Marker position={[location.latitude, location.longitude]} icon={USER_PIN}><Popup>Your current location</Popup></Marker>}

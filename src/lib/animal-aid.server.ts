@@ -62,6 +62,7 @@ export const sendAnimalAidPing = createServerFn({ method: "POST" })
       .eq("is_available", true)
       .single();
     if (contactError || !contact) throw new Error("This contact is no longer available.");
+    if (!contact.email || !/^\S+@\S+\.\S+$/.test(contact.email)) throw new Error("This person does not have a deliverable email address.");
 
     const { data: ping, error: pingError } = await admin
       .from("assistance_pings")
@@ -73,7 +74,7 @@ export const sendAnimalAidPing = createServerFn({ method: "POST" })
     const appUrl = process.env.APP_URL;
     const resendKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM_EMAIL;
-    if (!resendKey || !from || !appUrl) return { id: ping.id, delivery: "saved" as const };
+    if (!resendKey || !from || !appUrl) throw new Error("Email delivery is not configured on the server.");
 
     const pingUrl = `${appUrl.replace(/\/$/, "")}/?ping=${encodeURIComponent(ping.id)}`;
     const email = await fetch("https://api.resend.com/emails", {
@@ -87,6 +88,9 @@ export const sendAnimalAidPing = createServerFn({ method: "POST" })
         html: `<p>A nearby AnimalAid user needs assistance.</p><p>${data.description.replace(/[<>&]/g, "")}</p><p><a href="${pingUrl}">Open this ping</a></p>`,
       }),
     });
-    if (!email.ok) throw new Error("The ping was saved, but the email could not be sent.");
+    if (!email.ok) {
+      const emailError = await email.json().catch(() => null) as { message?: string; error?: string } | null;
+      throw new Error(emailError?.message || emailError?.error || "The ping was saved, but the email provider rejected delivery.");
+    }
     return { id: ping.id, delivery: "email" as const };
   });
