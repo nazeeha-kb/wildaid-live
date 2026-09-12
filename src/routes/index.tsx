@@ -382,10 +382,13 @@ function Results({
           <div className="mt-4 grid gap-3">
             {mapMode === "people" ? (
               individuals.length ? individuals.map((person) => <PersonCard key={person.id} person={person} onPing={sendPing} pingPending={pingPending} />) : <NearbyEmpty title="No people nearby right now" body={sessionLoading ? "Checking for nearby AnimalAid users." : "No opted-in AnimalAid users are within 100 miles of your current location."} />
-            ) : placesLoading ? (
+            ) : placesLoading && !mapCenters.length ? (
               <div className="h-24 animate-pulse rounded-xl bg-muted" />
-            ) : places.length ? (
-              places.map((place) => <CarePlaceCard key={place.id} place={place} />)
+            ) : places.length || mapCenters.length ? (
+              <>
+                {mapCenters.map((center) => <RehabberCenterCard key={center.id} center={center} />)}
+                {places.map((place) => <CarePlaceCard key={place.id} place={place} />)}
+              </>
             ) : (
               <NearbyEmpty title="No nearby care locations found" body="Try widening your search area or contact your local wildlife authority for guidance." />
             )}
@@ -401,6 +404,13 @@ function CarePlaceCard({ place }: { place: NearbyCarePlace }) {
     <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-display text-lg leading-snug">{place.name}</h3><p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground"><Navigation className="size-3.5 text-primary" /> {place.distance.toFixed(1)} mi away</p></div><span className="shrink-0 rounded-full bg-appt-soft px-2.5 py-1 text-xs font-semibold text-appt">{place.kind}</span></div>
     {place.address && <p className="mt-3 text-sm text-muted-foreground">{place.address}</p>}
     <div className="mt-4 flex flex-wrap items-center gap-2">{place.phone && <a href={tel(place.phone)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground tap-press hover:bg-primary/90"><Phone className="size-4" /> Call</a>}{place.website && <a href={place.website} target="_blank" rel="noreferrer" className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent">Website</a>}</div>
+  </div>;
+}
+
+function RehabberCenterCard({ center }: { center: NearbyCenter }) {
+  return <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-display text-lg leading-snug">{center.name}</h3><p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground"><Navigation className="size-3.5 text-primary" /> {center.distance.toFixed(1)} mi away</p></div><span className="shrink-0 rounded-full bg-open-soft px-2.5 py-1 text-xs font-semibold text-open">Wildlife care</span></div>
+    {center.phone && <div className="mt-4"><a href={tel(center.phone)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground tap-press hover:bg-primary/90"><Phone className="size-4" /> Call</a></div>}
   </div>;
 }
 
