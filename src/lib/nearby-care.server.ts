@@ -18,16 +18,32 @@ export const getNearbyCarePlaces = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<NearbyCarePlace[]> => {
     if (!Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) return [];
     const zoneRadiusKm = 25;
-    const query = `[out:json][timeout:25];(nwr[amenity=veterinary](around:${zoneRadiusKm * 1_000},${data.latitude},${data.longitude});nwr[healthcare=animal](around:${zoneRadiusKm * 1_000},${data.latitude},${data.longitude});nwr[office=veterinarian](around:${zoneRadiusKm * 1_000},${data.latitude},${data.longitude});nwr[animal_shelter](around:${zoneRadiusKm * 1_000},${data.latitude},${data.longitude});nwr[amenity=animal_boarding](around:${zoneRadiusKm * 1_000},${data.latitude},${data.longitude});nwr["animal:wildlife_rehabilitation"="yes"](around:${zoneRadiusKm * 1_000},${data.latitude},${data.longitude}););out center tags;`;
-    const response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ data: query }),
-    });
-    if (!response.ok) throw new Error("Nearby care listings are temporarily unavailable.");
-    const payload = await response.json() as { elements?: Array<{ type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }> };
+    const radiusMeters = zoneRadiusKm * 1_000;
+    const query = `[out:json][timeout:25];(nwr[amenity=veterinary](around:${radiusMeters},${data.latitude},${data.longitude});nwr[healthcare=animal](around:${radiusMeters},${data.latitude},${data.longitude});nwr[healthcare=clinic](around:${radiusMeters},${data.latitude},${data.longitude});nwr[office=veterinarian](around:${radiusMeters},${data.latitude},${data.longitude});nwr[animal_shelter](around:${radiusMeters},${data.latitude},${data.longitude});nwr[amenity=animal_boarding](around:${radiusMeters},${data.latitude},${data.longitude});nwr[shop=pet](around:${radiusMeters},${data.latitude},${data.longitude});nwr["animal:wildlife_rehabilitation"="yes"](around:${radiusMeters},${data.latitude},${data.longitude}););out center tags;`;
+    const endpoints = [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter",
+      "https://overpass.private.coffee/api/interpreter",
+    ];
+    let elements: Array<{ type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }> = [];
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
+          body: new URLSearchParams({ data: query }).toString(),
+        });
+        if (!response.ok) continue;
+        const payload = await response.json() as { elements?: typeof elements };
+        elements = payload.elements ?? [];
+        if (elements.length) break;
+      } catch {
+        continue;
+      }
+    }
+    if (!elements.length) throw new Error("Nearby care listings are temporarily unavailable.");
     const origin = { latitude: data.latitude, longitude: data.longitude };
-    return (payload.elements ?? []).flatMap((element) => {
+    return elements.flatMap((element) => {
       const latitude = element.lat ?? element.center?.lat;
       const longitude = element.lon ?? element.center?.lon;
       if (!latitude || !longitude || !element.tags?.name) return [];

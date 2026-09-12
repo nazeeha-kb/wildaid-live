@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/rehabber")({ component: RehabberDashboard });
 
 const STATUSES: Status[] = ["open", "full", "by_appointment"];
-const REHABBER_RADIUS_KM = 30;
+const REHABBER_RADIUS_KM = 10;
 const REHABBER_RADIUS_MILES = REHABBER_RADIUS_KM * 0.621371;
 const FREE_EMAIL_DOMAINS = ["gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com", "proton.me", "protonmail.com"];
 
