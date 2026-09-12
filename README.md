@@ -21,7 +21,7 @@ name
 lat/lng (spread around a real metro area, e.g. Pittsburgh, PA)
 
 phone number (fake)
-
+ 
 species categories they handle: birds, mammals-small (squirrels, opossums), mammals-medium (raccoons, groundhogs), fawns, reptiles
 
 for EACH species category, a status: open, full, by-appointment
