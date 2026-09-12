@@ -28,17 +28,21 @@ export const analyzeAnimalImage = createServerFn({ method: "POST" })
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [
-          { text: "Describe this wildlife-help photo for a licensed wildlife rehabilitator in one or two short, complete sentences. Identify the animal only when reasonably visible, mention only observable condition or risks, and do not diagnose. Return plain text with no heading or markdown." },
-          { inlineData: { mimeType: data.mimeType, data: data.imageBase64 } },
+          { text: "Describe exactly what this wildlife-help photo depicts in exactly one detailed, complete sentence for a licensed wildlife rehabilitator. Name the animal only when reasonably visible, describe its visible appearance, position, surroundings, and observable condition or risks, do not diagnose, and return plain text with no heading or markdown." },
+          { inlineData: { mimeType: data.mimeType || "image/jpeg", data: data.imageBase64 } },
         ] }],
         generationConfig: { temperature: 0.1, maxOutputTokens: 160 },
       }),
     });
-    if (!response.ok) throw new Error("Image analysis is temporarily unavailable.");
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+      throw new Error(errorPayload?.error?.message || "Image analysis is temporarily unavailable.");
+    }
     const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const description = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join(" ").replace(/\s+/g, " ").trim();
-    if (!description || description.replace(/[.!?\s]/g, "").length < 12) throw new Error("The image analysis was incomplete. Please analyze the photo again.");
-    return { description: description.replace(/^\*+|\*+$/g, "").trim() };
+    const description = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join(" ").replace(/\s+/g, " ").replace(/^[\s*]+|[\s*]+$/g, "").trim();
+    const sentence = description?.match(/^.*?[.!?](?:\s|$)/)?.[0].trim() || description;
+    if (!sentence || sentence.replace(/[.!?\s]/g, "").length < 12) throw new Error("Gemini returned no usable image description. Please try a clearer photo.");
+    return { description: sentence };
   });
 
 export const sendAnimalAidPing = createServerFn({ method: "POST" })

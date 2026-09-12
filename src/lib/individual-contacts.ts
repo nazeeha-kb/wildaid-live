@@ -24,6 +24,7 @@ export function useIndividualContacts(location?: UserLocation, enabled = true) {
       const metadataName = userData.user.user_metadata?.["full_name"];
       const contact = {
         display_name: typeof metadataName === "string" && metadataName.trim() ? metadataName.trim() : userData.user.email?.split("@")[0] || "AnimalAid user",
+        email: userData.user.email || "",
         latitude: location.latitude,
         longitude: location.longitude,
         is_available: true,

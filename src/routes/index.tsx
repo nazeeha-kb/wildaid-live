@@ -307,9 +307,8 @@ function Results({
 }) {
   const now = useNow(10000);
   const { location, status: locationStatus, retry: retryLocation } = useUserLocation();
-  const { session, isLoading: sessionLoading } = useSupabaseSession();
-  const canViewPeople = Boolean(session);
-  const { data: individuals = [] } = useIndividualContacts(location, canViewPeople);
+  const { isLoading: sessionLoading } = useSupabaseSession();
+  const { data: individuals = [], refetch: refreshIndividuals } = useIndividualContacts(location);
   const { data: places = [], isLoading: placesLoading } = useNearbyCarePlaces(location);
   const [description, setDescription] = useState("");
   const [replyTo, setReplyTo] = useState("");
@@ -362,7 +361,9 @@ function Results({
           </p>
         </div>
         <span className="flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] text-muted-foreground">
-          <RefreshCw className="size-3" /> live
+          <button type="button" onClick={() => { retryLocation(); void refreshIndividuals(); }} disabled={locationStatus === "locating"} className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-60" aria-label="Refresh your current location">
+            <RefreshCw className={`size-3 ${locationStatus === "locating" ? "animate-spin" : ""}`} /> live
+          </button>
         </span>
       </div>
 
@@ -373,11 +374,11 @@ function Results({
       ) : (
         <>
           <ImageReportComposer description={description} onDescriptionChange={setDescription} email={replyTo} onEmailChange={setReplyTo} />
-          <MapPanel location={location} locationStatus={locationStatus} onRetryLocation={retryLocation} individuals={canViewPeople ? individuals : []} places={places} mode={mapMode} onModeChange={setMapMode} onPing={sendPing} pingPending={pingPending} />
+          <MapPanel location={location} locationStatus={locationStatus} onRetryLocation={() => { retryLocation(); void refreshIndividuals(); }} individuals={individuals} places={places} mode={mapMode} onModeChange={setMapMode} onPing={sendPing} pingPending={pingPending} />
           {pingMessage && <p className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground" role="status">{pingMessage}</p>}
           <div className="mt-4 grid gap-3">
             {mapMode === "people" ? (
-              !canViewPeople ? <SignInEmpty loading={sessionLoading} /> : individuals.length ? individuals.map((person) => <PersonCard key={person.id} person={person} onPing={sendPing} pingPending={pingPending} />) : <NearbyEmpty title="No people nearby right now" body="No AnimalAid users nearby have opted in close to your current location." />
+              individuals.length ? individuals.map((person) => <PersonCard key={person.id} person={person} onPing={sendPing} pingPending={pingPending} />) : <NearbyEmpty title="No people nearby right now" body={sessionLoading ? "Checking for nearby AnimalAid users." : "No opted-in AnimalAid users are within 100 miles of your current location."} />
             ) : placesLoading ? (
               <div className="h-24 animate-pulse rounded-xl bg-muted" />
             ) : places.length ? (
