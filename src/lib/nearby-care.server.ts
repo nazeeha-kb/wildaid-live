@@ -35,5 +35,5 @@ export const getNearbyCarePlaces = createServerFn({ method: "GET" })
       const kind = tags["animal:wildlife_rehabilitation"] === "yes" || tags.animal_shelter ? "Wildlife care" : "Veterinary care";
       const address = [tags["addr:housenumber"], tags["addr:street"], tags["addr:city"]].filter(Boolean).join(" ");
       return [{ id: `${element.type}-${element.id}`, name: tags.name, kind, latitude, longitude, address: address || undefined, phone: tags.phone || tags["contact:phone"], website: tags.website || tags["contact:website"], distance: distanceMiles(origin, { latitude, longitude }) }];
-    }).filter((place) => place.distance <= zoneRadiusKm * 0.621371).sort((a, b) => a.distance - b.distance).slice(0, 100);
+    }).filter((place) => place.distance <= zoneRadiusKm * 0.621371).sort((a, b) => a.distance - b.distance);
   });
