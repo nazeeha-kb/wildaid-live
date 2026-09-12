@@ -27,7 +27,7 @@ function RequestResetPassword() {
       redirectTo: `${window.location.origin}/update-password`,
     });
     setIsSubmitting(false);
-    setMessage(error ? error.message : "Password reset email sent. Use the link in your inbox to set a new password.");
+    setMessage(error ? error.message : "Check your spam or inbox for a password reset email.");
   };
 
   return (
